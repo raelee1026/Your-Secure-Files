@@ -151,7 +151,7 @@ def register_user(session: SessionDep, user_in: UserRegister) -> Any:
             detail="The user with this email already exists in the system",
         )
     user_create = UserCreate.model_validate(user_in)
-    user = crud.create_user(session=session, user_create=user_create)
+    user = crud.create_user(session=session, user_create=user_create, public_key=user_in.public_key)
     return user
 
 

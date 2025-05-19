@@ -16,6 +16,8 @@ from app.utils import (
     generate_reset_password_email,
     send_email,
     verify_password_reset_token,
+    generate_totp_secret,
+    verify_totp_token
 )
 
 router = APIRouter(tags=["login"])
@@ -35,13 +37,17 @@ def login_access_token(
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+    
+    # if user use totp
+    if user.totp_secret:
+        return {"msg": "TOTP verification required", "email": user.email}
+    
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return Token(
         access_token=security.create_access_token(
             user.id, expires_delta=access_token_expires
         )
     )
-
 
 @router.post("/login/test-token", response_model=UserPublic)
 def test_token(current_user: CurrentUser) -> Any:
@@ -122,3 +128,20 @@ def recover_password_html_content(email: str, session: SessionDep) -> Any:
     return HTMLResponse(
         content=email_data.html_content, headers={"subject:": email_data.subject}
     )
+
+@router.post("/login/totp-verify", response_model=Token)
+def verify_totp(
+    session: SessionDep,
+    email: str = Body(...),
+    totp_code: str = Body(...),
+):
+    user = crud.get_user_by_email(session=session, email=email)
+    if not user or not user.totp_secret:
+        raise HTTPException(status_code=400, detail="Invalid user or TOTP not setup")
+    
+    if not verify_totp_token(user.totp_secret, totp_code):
+        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = security.create_access_token(user.id, expires_delta=access_token_expires)
+    return Token(access_token=token)

@@ -2,6 +2,9 @@ import uuid
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import Column, String
+from datetime import datetime
+from typing import Optional
 
 
 # Shared properties
@@ -21,7 +24,7 @@ class UserRegister(SQLModel):
     email: EmailStr = Field(max_length=255)
     password: str = Field(min_length=8, max_length=40)
     full_name: str | None = Field(default=None, max_length=255)
-
+    public_key: Optional[str] = Field(default=None) 
 
 # Properties to receive via API on update, all are optional
 class UserUpdate(UserBase):
@@ -43,6 +46,8 @@ class UpdatePassword(SQLModel):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
+    public_key: Optional[str] = Field(default=None, sa_column=Column(String, unique=True))  # add public key 
+    totp_secret: Optional[str] = Field(default=None)  # TOTP secret key
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
 
 
@@ -111,3 +116,22 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
+
+# New table to store AES session keys encrypted with RSA public key
+class SessionKey(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
+    session_key_encrypted: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+
+
+# New table to store encrypted files metadata and content
+class EncryptedFile(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
+    file_name: str
+    file_content_encrypted: bytes
+    iv: bytes
+    tag: bytes
+    created_at: datetime = Field(default_factory=datetime.utcnow)

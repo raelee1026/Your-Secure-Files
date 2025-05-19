@@ -11,6 +11,7 @@ from jwt.exceptions import InvalidTokenError
 
 from app.core import security
 from app.core.config import settings
+import pyotp
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -121,3 +122,12 @@ def verify_password_reset_token(token: str) -> str | None:
         return str(decoded_token["sub"])
     except InvalidTokenError:
         return None
+
+def generate_totp_secret() -> str:
+    """generate a set of new TOTP secret key"""
+    return pyotp.random_base32()
+
+def verify_totp_token(secret: str, token: str) -> bool:
+    """verify the user's TOTP code"""
+    totp = pyotp.TOTP(secret)
+    return totp.verify(token)
