@@ -13,7 +13,7 @@ import { Field } from "@/components/ui/field"
 import { InputGroup } from "@/components/ui/input-group"
 import { PasswordInput } from "@/components/ui/password-input"
 import useAuth, { isLoggedIn } from "@/hooks/useAuth"
-import { confirmPasswordRules, emailPattern, passwordRules } from "@/utils"
+import { confirmPasswordRules, emailPattern, passwordRules, generateRSAKeyPair, exportPublicKeyToPEM, savePrivateKey } from "@/utils"
 import Logo from "/assets/images/fastapi-logo.svg"
 
 export const Route = createFileRoute("/signup")({
@@ -49,8 +49,17 @@ function SignUp() {
     },
   })
 
-  const onSubmit: SubmitHandler<UserRegisterForm> = (data) => {
-    signUpMutation.mutate(data)
+  const onSubmit: SubmitHandler<UserRegisterForm> = async (data) => {
+    console.log("on submit")
+    try {
+      const keyPair = await generateRSAKeyPair()
+      await savePrivateKey(keyPair.privateKey, data.full_name || "", data.password);
+      const publicKeyPEM = await exportPublicKeyToPEM(keyPair.publicKey)
+      const payload = { ...data, public_key: publicKeyPEM }
+      signUpMutation.mutate(payload)
+    } catch (error) {
+      console.error("fail to generate key", error)
+    }
   }
 
   return (
