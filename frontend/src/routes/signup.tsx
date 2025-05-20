@@ -50,7 +50,6 @@ function SignUp() {
   })
 
   const onSubmit: SubmitHandler<UserRegisterForm> = async (data) => {
-    console.log("on submit")
     try {
       const keyPair = await generateRSAKeyPair()
       await savePrivateKey(keyPair.privateKey, data.full_name || "", data.password);

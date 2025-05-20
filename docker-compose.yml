@@ -85,10 +85,12 @@ services:
       db:
         condition: service_healthy
         restart: true
-      prestart:
-        condition: service_completed_successfully
+      #prestart:
+        #condition: service_completed_successfully
     env_file:
       - .env
+    #volumes:
+      #- ./backend/app/alembic:/app/app/alembic
     environment:
       - DOMAIN=${DOMAIN}
       - FRONTEND_HOST=${FRONTEND_HOST?Variable not set}
