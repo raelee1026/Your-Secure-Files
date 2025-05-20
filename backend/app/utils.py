@@ -12,6 +12,9 @@ from jwt.exceptions import InvalidTokenError
 from app.core import security
 from app.core.config import settings
 import pyotp
+import qrcode
+from io import BytesIO
+import base64
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -131,3 +134,12 @@ def verify_totp_token(secret: str, token: str) -> bool:
     """verify the user's TOTP code"""
     totp = pyotp.TOTP(secret)
     return totp.verify(token)
+
+def get_totp_qr_code(issuer: str, account_name: str, secret: str) -> str:
+    """Generate a QR code URL for TOTP setup."""
+    totp = pyotp.TOTP(secret)
+    uri = totp.provisioning_uri(name=account_name, issuer_name=issuer)
+    qr = qrcode.make(uri)
+    buffer = BytesIO()
+    qr.save(buffer, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()

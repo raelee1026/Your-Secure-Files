@@ -46,6 +46,7 @@ import type {
   UtilsTestEmailData,
   UtilsTestEmailResponse,
   UtilsHealthCheckResponse,
+  //TotpSetupResponse,
 } from "./types.gen"
 
 export class ItemsService {
@@ -205,6 +206,13 @@ export class LoginService {
     })
   }
 
+  /*
+  public static totpSetup(): CancelablePromise<TotpSetupResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/login/totp-setup",
+    });
+  }*/
   /**
    * Recover Password
    * Password Recovery
@@ -547,3 +555,4 @@ export class UtilsService {
     })
   }
 }
+  
