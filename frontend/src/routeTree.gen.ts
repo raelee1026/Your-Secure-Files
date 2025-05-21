@@ -12,7 +12,6 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as TotpSetupImport } from './routes/totp-setup'
-import { Route as TotpVerifymport } from './routes/totp-verify'
 import { Route as SignupImport } from './routes/signup'
 import { Route as ResetPasswordImport } from './routes/reset-password'
 import { Route as RecoverPasswordImport } from './routes/recover-password'
@@ -27,11 +26,6 @@ import { Route as LayoutAdminImport } from './routes/_layout/admin'
 
 const TotpSetupRoute = TotpSetupImport.update({
   path: '/totp-setup',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const TotpVerifyRoute = TotpVerifyImport.update({
-  path: '/totp-verify',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -108,10 +102,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TotpSetupImport
       parentRoute: typeof rootRoute
     }
-    '/totp-verify': {
-      preLoaderRoute: typeof TotpVerifyImport
-      parentRoute: typeof rootRoute
-    }
     '/_layout/admin': {
       preLoaderRoute: typeof LayoutAdminImport
       parentRoute: typeof LayoutImport
@@ -145,7 +135,6 @@ export const routeTree = rootRoute.addChildren([
   ResetPasswordRoute,
   SignupRoute,
   TotpSetupRoute,
-  TotpVerifyRoute,
 ])
 
 /* prettier-ignore-end */
