@@ -130,3 +130,84 @@ export async function decryptWithPrivateKey(
     ciphertext
   )
 }
+
+export async function encryptFile(file: File, aesKey: CryptoKey): Promise<Blob> {
+  /** example usage:
+   * const aesKey = await getSessionKey(); // 你已經實作過的
+      const encryptedBlob = await encryptFile(file, aesKey);
+
+      const formData = new FormData();
+      formData.append("file", encryptedBlob, file.name);
+
+      await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+      });
+
+   */
+  
+  // Step 1: 產生隨機 12-byte IV
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  // Step 2: 讀取檔案內容為 ArrayBuffer
+  const fileBuffer = await file.arrayBuffer();
+
+  // Step 3: 加密內容
+  const ciphertext = await crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv,
+    },
+    aesKey,
+    fileBuffer
+  );
+
+  // Step 4: 組合 IV + ciphertext 為單一 Uint8Array
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+
+  // Step 5: 包裝成 Blob（方便傳輸上傳）
+  return new Blob([combined], { type: "application/octet-stream" });
+}
+
+export async function decryptFile(blob: Blob, aesKey: CryptoKey): Promise<Blob> {
+  /** example usage:
+   * const aesKey = await getSessionKey();
+    const response = await fetch("/api/download?id=abc123");
+    const encryptedBlob = await response.blob();
+
+    const decryptedBlob = await decryptFile(encryptedBlob, aesKey);
+
+    // 建立下載連結
+    const url = URL.createObjectURL(decryptedBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "decrypted.txt";
+    link.click();
+
+   */
+  // Step 1: 讀取整個 Blob 為 Uint8Array
+  const combined = new Uint8Array(await blob.arrayBuffer());
+
+  // Step 2: 切出前 12 bytes 為 IV，剩下為 ciphertext
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+
+  // Step 3: 使用 AES-GCM 解密
+  const decryptedBuffer = await crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv,
+    },
+    aesKey,
+    ciphertext
+  );
+
+  // Step 4: 回傳解密後的 Blob（可供下載或預覽）
+  return new Blob([decryptedBuffer], { type: "application/octet-stream" });
+}
+

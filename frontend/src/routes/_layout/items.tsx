@@ -27,6 +27,8 @@ import type { ItemPublic } from "@/client"
 
 import { getSessionKey } from "@/utils/aes"
 import { decryptAESGCM } from "@/utils/aes"
+import FileUpload from "@/components/Upload/FileUpload"
+
 
 
 const itemsSearchSchema = z.object({
@@ -191,6 +193,7 @@ function Items() {
         Items Management
       </Heading>
       <AddItem />
+      <FileUpload />
       <ItemsTable />
     </Container>
   )

@@ -135,3 +135,10 @@ class EncryptedFile(SQLModel, table=True):
     iv: bytes
     tag: bytes
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# class EncryptedFile(SQLModel, table=True):
+#     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+#     user_id: str
+#     original_filename: str
+#     stored_path: str
+#     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
