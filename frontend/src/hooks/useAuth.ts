@@ -166,6 +166,8 @@ const useAuth = () => {
               onSuccess: (data) => {
                 console.log("Session Key success", data.session_key_encrypted);
                 localStorage.setItem("session_key", data.session_key_encrypted);
+                localStorage.setItem("username", username);
+                localStorage.setItem("password", rawPassword);
               },
               onError: (err) => {
                 console.error("⚠️ Session Key fail:", err);

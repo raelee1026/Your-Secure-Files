@@ -1,115 +1,132 @@
-// generate RSA key pair
-export async function generateRSAKeyPair(): Promise<CryptoKeyPair> {
-  return window.crypto.subtle.generateKey(
+import { importAESKeyFromRawBytes } from "./aes";
+import { openDB } from 'idb';
+
+export async function decryptKmsPrivateKey(
+  username: string,
+  password: string
+): Promise<CryptoKey> {
+  const db = await openDB("KeyStore", 1);
+  const encryptedData = await db.get("keys", username);
+  db.close();
+
+  if (!encryptedData) throw new Error("Private key not found");
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+
+  const derivedKey = await crypto.subtle.deriveKey(
     {
-      name: "RSASSA-PKCS1-v1_5",
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]),
+      name: "PBKDF2",
+      salt: new Uint8Array(encryptedData.salt),
+      iterations: 100000,
       hash: "SHA-256",
     },
+    key,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: new Uint8Array(encryptedData.iv) },
+    derivedKey,
+    new Uint8Array(encryptedData.encrypted)
+  );
+
+  const jwkPrivateKey = JSON.parse(new TextDecoder().decode(decrypted));
+
+  // 🔧 為了與 Web Crypto 相容，移除干擾欄位
+  delete jwkPrivateKey.alg;
+  delete jwkPrivateKey.key_ops;
+
+  return await crypto.subtle.importKey(
+    "jwk",
+    jwkPrivateKey,
+    { name: "RSA-OAEP", hash: "SHA-256" }, // ✅ 與後端完全一致
     true,
-    ["sign", "verify"]
-  )
+    ["decrypt"]
+  );
 }
 
-// export public key as PEM format (for storage in localStorage)
-export async function exportPublicKey(key: CryptoKey): Promise<string> {
-  const spki = await window.crypto.subtle.exportKey("spki", key)
-  const b64 = window.btoa(String.fromCharCode(...new Uint8Array(spki)))
-  return `-----BEGIN PUBLIC KEY-----\n${b64.match(/.{1,64}/g)?.join("\n")}\n-----END PUBLIC KEY-----`
+
+// export async function decryptKmsPrivateKey(
+//   username: string,
+//   password: string
+// ): Promise<CryptoKey> {
+//   const db = await openDB("KeyStore", 1);
+//   const encryptedData = await db.get("keys", username);
+//   db.close();
+
+//   if (!encryptedData) throw new Error("Private key not found");
+
+//   const key = await window.crypto.subtle.importKey(
+//     "raw",
+//     new TextEncoder().encode(password),
+//     { name: "PBKDF2" },
+//     false,
+//     ["deriveKey"]
+//   );
+
+//   const derivedKey = await window.crypto.subtle.deriveKey(
+//     {
+//       name: "PBKDF2",
+//       salt: new Uint8Array(encryptedData.salt),
+//       iterations: 100000,
+//       hash: "SHA-256",
+//     },
+//     key,
+//     { name: "AES-GCM", length: 256 },
+//     false,
+//     ["decrypt"]
+//   );
+
+//   const decrypted = await window.crypto.subtle.decrypt(
+//     { name: "AES-GCM", iv: new Uint8Array(encryptedData.iv) },
+//     derivedKey,
+//     new Uint8Array(encryptedData.encrypted)
+//   );
+
+//   const jwkPrivateKey = JSON.parse(new TextDecoder().decode(decrypted));
+
+//   if (!jwkPrivateKey.d || !jwkPrivateKey.n || !jwkPrivateKey.e) {
+//     throw new Error("Invalid JWK: missing RSA private key fields (d, n, e)");
+//   }
+
+//   return window.crypto.subtle.importKey(
+//     "jwk",
+//     jwkPrivateKey,
+//     { name: "RSA-OAEP", hash: "SHA-256" },
+//     true,
+//     ["decrypt"]
+//   );
+// }
+
+
+export async function getDecryptedSessionKey(username: string, password: string): Promise<CryptoKey> {
+  const encryptedKeyB64 = localStorage.getItem("session_key")
+  if (!encryptedKeyB64) throw new Error("Missing encrypted session key")
+
+  const privateKey = await decryptKmsPrivateKey(username, password)
+  const rawKey = await decryptWithPrivateKey(privateKey, encryptedKeyB64)
+  return await importAESKeyFromRawBytes(rawKey)
 }
 
-// export private key as PEM format (for storage in localStorage)
-export async function exportPrivateKey(key: CryptoKey): Promise<string> {
-  const pkcs8 = await window.crypto.subtle.exportKey("pkcs8", key)
-  const b64 = window.btoa(String.fromCharCode(...new Uint8Array(pkcs8)))
-  return `-----BEGIN PRIVATE KEY-----\n${b64.match(/.{1,64}/g)?.join("\n")}\n-----END PRIVATE KEY-----`
-}
-
-// load PEM format public key
-export async function importPublicKey(pem: string): Promise<CryptoKey> {
-  const b64 = pem.replace(/-----.*?-----/g, "").replace(/\s/g, "")
-  const der = Uint8Array.from(window.atob(b64), c => c.charCodeAt(0))
-  return window.crypto.subtle.importKey(
-    "spki",
-    der,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    true,
-    ["verify"]
-  )
-}
-
-// load PEM format private key
-export async function importPrivateKey(pem: string): Promise<CryptoKey> {
-  const b64 = pem.replace(/-----.*?-----/g, "").replace(/\s/g, "")
-  const der = Uint8Array.from(window.atob(b64), c => c.charCodeAt(0))
-  return window.crypto.subtle.importKey(
-    "pkcs8",
-    der,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    true,
-    ["sign"]
-  )
-}
-
-// sign data with private key
-export async function signWithPrivateKey(privateKey: CryptoKey, data: ArrayBuffer): Promise<ArrayBuffer> {
-  return window.crypto.subtle.sign(
-    { name: "RSASSA-PKCS1-v1_5" },
+// 解密從後端拿到的 session_key_encrypted（Base64 編碼的 RSA 密文）
+export async function decryptWithPrivateKey(
+  privateKey: CryptoKey,
+  encryptedBase64: string
+): Promise<ArrayBuffer> {
+  const ciphertext = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0))
+  return await window.crypto.subtle.decrypt(
+    {
+      name: "RSA-OAEP", // 或 RSASSA-PKCS1-v1_5，根據後端用哪個演算法
+    },
     privateKey,
-    data
+    ciphertext
   )
-}
-
-// verify signature with public key
-export async function verifyWithPublicKey(publicKey: CryptoKey, signature: ArrayBuffer, data: ArrayBuffer): Promise<boolean> {
-  return window.crypto.subtle.verify(
-    { name: "RSASSA-PKCS1-v1_5" },
-    publicKey,
-    signature,
-    data
-  )
-}
-
-// --- AES-GCM encryption/decryption ---
-
-// import base64 string as AES CryptoKey
-export async function importAESKeyFromBase64(base64Key: string): Promise<CryptoKey> {
-  const rawKey = Uint8Array.from(atob(base64Key), c => c.charCodeAt(0));
-  return crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-
-export async function encryptAESGCM(plaintext: string, aesKey: CryptoKey): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encoded = new TextEncoder().encode(plaintext);
-
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, encoded);
-
-  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
-  combined.set(iv, 0);
-  combined.set(new Uint8Array(ciphertext), iv.length);
-
-  const result = btoa(String.fromCharCode(...combined));
-
-  // ✅ Log
-  console.log("🔐 Encrypting:", plaintext);
-  console.log("🧊 Encrypted (base64):", result);
-
-  return result;
-}
-
-// decrypt base64(nonce + ciphertext) with AES-GCM
-export async function decryptAESGCM(ciphertextBase64: string, aesKey: CryptoKey): Promise<string> {
-  const combined = Uint8Array.from(atob(ciphertextBase64), c => c.charCodeAt(0));
-  const iv = combined.slice(0, 12);
-  const ciphertext = combined.slice(12);
-
-  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, ciphertext);
-  const result = new TextDecoder().decode(decrypted);
-
-  // ✅ Log
-  console.log("🔓 Decrypting base64:", ciphertextBase64);
-  console.log("✅ Decrypted:", result);
-
-  return result;
 }

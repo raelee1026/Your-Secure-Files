@@ -25,10 +25,9 @@ import {
   DialogTrigger,
 } from "../ui/dialog"
 import { Field } from "../ui/field"
- import {
-  importAESKeyFromBase64,
-  encryptAESGCM,
-} from "@/utils/crypto" // 別忘了引入
+import { importAESKeyFromRawBytes } from "@/utils/aes"
+import { decryptKmsPrivateKey } from "@/utils/crypto"
+import { encryptAESGCM } from "@/utils/aes"
 
 
 interface EditItemProps {
@@ -76,14 +75,54 @@ const EditItem = ({ item }: EditItemProps) => {
   
   const onSubmit: SubmitHandler<ItemUpdateForm> = async (data) => {
   try {
-    const keyB64 = localStorage.getItem("session_key");
-    if (!keyB64) throw new Error("Missing AES session key");
+     const username = localStorage.getItem("username")
+      if (!username) throw new Error("Missing username")
 
-    const aesKey = await importAESKeyFromBase64(keyB64);
+      const password = localStorage.getItem("password")
+      if (!password) throw new Error("Missing password")
+
+      const privateKey = await decryptKmsPrivateKey(username, password); 
+      console.log("privateKey", privateKey)
+      if (!privateKey) throw new Error("Missing private key")
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      const encryptedB64 = localStorage.getItem("session_key")!;
+      console.log("encryptedB64", encryptedB64)
+      if (!encryptedB64) throw new Error("Missing encrypted session key")
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      const encryptedBytes = Uint8Array.from(atob(encryptedB64), c => c.charCodeAt(0));
+
+      const rawKey = await crypto.subtle.decrypt(
+        { name: "RSA-OAEP" },
+        privateKey,
+        encryptedBytes
+      );
+      console.log("rawKey", rawKey)
+      if (!rawKey) throw new Error("Missing raw key")
+      // stop for 5 seconds
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+
+      const aesKey = await crypto.subtle.importKey(
+        "raw",
+        rawKey,
+        { name: "AES-GCM" },
+        true,
+        ["encrypt", "decrypt"]
+      );
+      console.log("aesKey", aesKey)
+      if (!aesKey) throw new Error("Missing AES key")
+
+    
+    const session_key_encrypted = localStorage.getItem("session_key");
+    if (!session_key_encrypted) throw new Error("Missing AES session key");
+
+
     const encryptedTitle = await encryptAESGCM(data.title, aesKey);
     const encryptedDescription = data.description
-      ? await encryptAESGCM(data.description, aesKey)
-      : "";
+    ? await encryptAESGCM(data.description, aesKey)
+    : "";
 
     mutation.mutate({
       title: encryptedTitle,
@@ -93,6 +132,7 @@ const EditItem = ({ item }: EditItemProps) => {
     console.error("❌ 加密失敗:", err);
   }
 };
+    
 
   return (
     <DialogRoot

@@ -25,10 +25,8 @@ import {
 import { useEffect, useState } from "react"
 import type { ItemPublic } from "@/client"
 
-import {
-  importAESKeyFromBase64,
-  decryptAESGCM,
-} from "@/utils/crypto"
+import { getSessionKey } from "@/utils/aes"
+import { decryptAESGCM } from "@/utils/aes"
 
 
 const itemsSearchSchema = z.object({
@@ -75,22 +73,37 @@ function ItemsTable() {
       if (!items.length) return
 
       try {
-        const keyB64 = localStorage.getItem("session_key")
-        if (!keyB64) throw new Error("Missing AES session key")
-
-        const aesKey = await importAESKeyFromBase64(keyB64)
+        
+        const aesKey = await getSessionKey()
 
         const result = await Promise.all(
           items.map(async (item) => {
+            console.log("item", item)
+
             const title = await decryptAESGCM(item.title, aesKey)
+
+            console.log("title", title)
+            if (!title) throw new Error("Missing title")
+            // stop for 5 seconds
+            await new Promise((resolve) => setTimeout(resolve, 500))
+
+            if (!item.description) throw new Error("Missing description")
             const description = item.description
               ? await decryptAESGCM(item.description, aesKey)
               : ""
             return { ...item, title, description }
           })
         )
+        console.log("result", result)
+        if (!result) throw new Error("Missing result")
+        // stop for 5 seconds
+        await new Promise((resolve) => setTimeout(resolve, 500))
+
+
 
         setDecryptedItems(result)
+        console.log("setDecryptedItems", result)
+
       } catch (e) {
         console.error("❌ 解密失敗:", e)
         setDecryptedItems(items) // fallback to raw data
