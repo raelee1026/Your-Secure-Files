@@ -1,5 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
+import {
+  importAESKeyFromBase64,
+  encryptAESGCM,
+} from "@/utils/crypto"
 
 import {
   Button,
@@ -61,9 +65,25 @@ const AddItem = () => {
     },
   })
 
-  const onSubmit: SubmitHandler<ItemCreate> = (data) => {
-    mutation.mutate(data)
-  }
+  const onSubmit: SubmitHandler<ItemCreate> = async (data) => {
+    try {
+      const keyB64 = localStorage.getItem("session_key");
+      if (!keyB64) throw new Error("Missing AES session key");
+
+      const aesKey = await importAESKeyFromBase64(keyB64);
+      const encryptedTitle = await encryptAESGCM(data.title, aesKey);
+      const encryptedDescription = data.description
+      ? await encryptAESGCM(data.description, aesKey)
+      : "";
+
+      mutation.mutate({
+        title: encryptedTitle,
+        description: encryptedDescription,
+      });
+    } catch (err) {
+      console.error("❌ 加密失敗:", err);
+    }
+  };
 
   return (
     <DialogRoot

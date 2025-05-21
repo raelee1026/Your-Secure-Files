@@ -25,6 +25,11 @@ import {
   DialogTrigger,
 } from "../ui/dialog"
 import { Field } from "../ui/field"
+ import {
+  importAESKeyFromBase64,
+  encryptAESGCM,
+} from "@/utils/crypto" // 別忘了引入
+
 
 interface EditItemProps {
   item: ItemPublic
@@ -68,10 +73,26 @@ const EditItem = ({ item }: EditItemProps) => {
       queryClient.invalidateQueries({ queryKey: ["items"] })
     },
   })
-
+  
   const onSubmit: SubmitHandler<ItemUpdateForm> = async (data) => {
-    mutation.mutate(data)
+  try {
+    const keyB64 = localStorage.getItem("session_key");
+    if (!keyB64) throw new Error("Missing AES session key");
+
+    const aesKey = await importAESKeyFromBase64(keyB64);
+    const encryptedTitle = await encryptAESGCM(data.title, aesKey);
+    const encryptedDescription = data.description
+      ? await encryptAESGCM(data.description, aesKey)
+      : "";
+
+    mutation.mutate({
+      title: encryptedTitle,
+      description: encryptedDescription,
+    });
+  } catch (err) {
+    console.error("❌ 加密失敗:", err);
   }
+};
 
   return (
     <DialogRoot
