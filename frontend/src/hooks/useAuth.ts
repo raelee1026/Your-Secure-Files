@@ -16,7 +16,9 @@ interface TotpRequiredResponse {
   msg: string;
   email: string;
   requires_totp_setup: boolean; 
-  access_token: string; 
+  //access_token: string;
+  access_token?: string;
+  totp_setup_token?: string;
 }
 
 interface TotpSetupResponse {
@@ -58,8 +60,14 @@ const useAuth = () => {
       formData: data,
     });
     const typedResponse = response as unknown as TotpRequiredResponse;
-    localStorage.setItem("access_token", typedResponse.access_token);
-    console.log(`saveaccess token: ${typedResponse.access_token}`);
+
+    if (typedResponse.requires_totp_setup && typedResponse.totp_setup_token) {
+      localStorage.setItem("temp_token", typedResponse.totp_setup_token); // setup token
+    } else if (typedResponse.access_token) {
+      localStorage.setItem("access_token", typedResponse.access_token); // fallback or verify token
+    }
+    //localStorage.setItem("access_token", typedResponse.access_token);
+    //console.log(`saveaccess token: ${typedResponse.access_token}`);
     return typedResponse;
   };
 
@@ -83,7 +91,7 @@ const useAuth = () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${localStorage.getItem("access_token")}`,
+        "Authorization": `Bearer ${localStorage.getItem("temp_token")}`,
       },
     });
     if (!response.ok) {
@@ -104,7 +112,7 @@ const useAuth = () => {
   });
 
   const totpVerify = async ({ email, totp_code }: { email: string; totp_code: string }) => {
-    const response = await fetch('/api/login/totp-verify', {
+    const response = await fetch("http://localhost:8000/api/v1/login/totp-verify", {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -121,7 +129,7 @@ const useAuth = () => {
   const totpVerifyMutation = useMutation({
     mutationFn: totpVerify,
     onSuccess: (data) => {
-      // is it correct?
+      localStorage.removeItem("temp_token");
       localStorage.setItem("access_token", data.access_token);
       setRequiresTotp(false);
       setEmail(null);

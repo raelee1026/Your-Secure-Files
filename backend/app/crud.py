@@ -52,3 +52,12 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
     session.commit()
     session.refresh(db_item)
     return db_item
+
+# for totp
+def get_user_by_id(*, session: Session, user_id: str) -> User | None:
+    try:
+        uuid_id = uuid.UUID(user_id)
+    except ValueError:
+        return None
+    statement = select(User).where(User.id == uuid_id)
+    return session.exec(statement).first()
