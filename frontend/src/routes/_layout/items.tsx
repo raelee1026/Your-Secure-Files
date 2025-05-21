@@ -22,6 +22,15 @@ import {
   PaginationRoot,
 } from "@/components/ui/pagination.tsx"
 
+import { useEffect, useState } from "react"
+import type { ItemPublic } from "@/client"
+
+import {
+  importAESKeyFromBase64,
+  decryptAESGCM,
+} from "@/utils/crypto"
+
+
 const itemsSearchSchema = z.object({
   page: z.number().catch(1),
 })
@@ -50,6 +59,9 @@ function ItemsTable() {
     placeholderData: (prevData) => prevData,
   })
 
+  // const [decryptedItems, setDecryptedItems] = useState<typeof data?.data>([])
+  const [decryptedItems, setDecryptedItems] = useState<ItemPublic[]>([])
+
   const setPage = (page: number) =>
     navigate({
       search: (prev: { [key: string]: string }) => ({ ...prev, page }),
@@ -57,6 +69,36 @@ function ItemsTable() {
 
   const items = data?.data.slice(0, PER_PAGE) ?? []
   const count = data?.count ?? 0
+
+  useEffect(() => {
+    const decryptItems = async () => {
+      if (!items.length) return
+
+      try {
+        const keyB64 = localStorage.getItem("session_key")
+        if (!keyB64) throw new Error("Missing AES session key")
+
+        const aesKey = await importAESKeyFromBase64(keyB64)
+
+        const result = await Promise.all(
+          items.map(async (item) => {
+            const title = await decryptAESGCM(item.title, aesKey)
+            const description = item.description
+              ? await decryptAESGCM(item.description, aesKey)
+              : ""
+            return { ...item, title, description }
+          })
+        )
+
+        setDecryptedItems(result)
+      } catch (e) {
+        console.error("❌ 解密失敗:", e)
+        setDecryptedItems(items) // fallback to raw data
+      }
+    }
+
+    decryptItems()
+  }, [items])
 
   if (isLoading) {
     return <PendingItems />
@@ -92,14 +134,10 @@ function ItemsTable() {
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {items?.map((item) => (
+          {decryptedItems.map((item) => (
             <Table.Row key={item.id} opacity={isPlaceholderData ? 0.5 : 1}>
-              <Table.Cell truncate maxW="sm">
-                {item.id}
-              </Table.Cell>
-              <Table.Cell truncate maxW="sm">
-                {item.title}
-              </Table.Cell>
+              <Table.Cell truncate maxW="sm">{item.id}</Table.Cell>
+              <Table.Cell truncate maxW="sm">{item.title}</Table.Cell>
               <Table.Cell
                 color={!item.description ? "gray" : "inherit"}
                 truncate
@@ -114,6 +152,7 @@ function ItemsTable() {
           ))}
         </Table.Body>
       </Table.Root>
+
       <Flex justifyContent="flex-end" mt={4}>
         <PaginationRoot
           count={count}
@@ -130,6 +169,7 @@ function ItemsTable() {
     </>
   )
 }
+
 
 function Items() {
   return (
