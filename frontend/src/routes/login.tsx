@@ -58,7 +58,7 @@ function Login() {
         if (!data.totp_code || !email) {
           throw new Error("TOTP code and email are required");
         }
-        await totpVerifyMutation.mutateAsync({ email, totp_code: data.totp_code });
+        await totpVerifyMutation.mutateAsync({ email, totp_code: data.totp_code, password: data.password });
       }
     } catch (err) {
       console.error("Error:", err);

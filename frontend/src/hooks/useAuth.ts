@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { decryptPrivateKey } from "@/utils";
 
 import {
   type Body_login_login_access_token as AccessToken,
@@ -10,6 +11,7 @@ import {
   type UserRegister,
   UsersService,
 } from "@/client";
+import useKms, { signMessageWithKey } from "@/hooks/useKms";
 import { handleError } from "@/utils";
 
 interface TotpRequiredResponse {
@@ -33,6 +35,7 @@ const useAuth = () => {
   const [error, setError] = useState<string | null>(null);
   const [requiresTotp, setRequiresTotp] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  //const [password, setPassword] = useState<string | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: user } = useQuery<UserPublic | null, Error>({
@@ -41,6 +44,7 @@ const useAuth = () => {
     enabled: isLoggedIn(),
   });
 
+  const { requestSessionKeyMutation } = useKms();
   const signUpMutation = useMutation({
     mutationFn: (data: UserRegister) =>
       UsersService.registerUser({ requestBody: data }),
@@ -111,7 +115,17 @@ const useAuth = () => {
     },
   });
 
-  const totpVerify = async ({ email, totp_code }: { email: string; totp_code: string }) => {
+  const totpVerify = async ({
+    email,
+    totp_code,
+    password,
+  }: {
+    email: string;
+    totp_code: string;
+    password?: string;
+  }) => {
+    //setPassword(password || null);
+    console.log(password);
     const response = await fetch("http://localhost:8000/api/v1/login/totp-verify", {
       method: 'POST',
       headers: { 
@@ -128,11 +142,42 @@ const useAuth = () => {
 
   const totpVerifyMutation = useMutation({
     mutationFn: totpVerify,
-    onSuccess: (data) => {
+    onSuccess: async (data, variables) => {
       localStorage.removeItem("temp_token");
       localStorage.setItem("access_token", data.access_token);
       setRequiresTotp(false);
       setEmail(null);
+      
+      const username = email;
+      const timestamp = Math.floor(Date.now() / 1000);
+      const rawPassword = variables.password;
+      console.log("rawPassword", rawPassword);
+
+      if (username) {
+        try {
+          if (!rawPassword) throw new Error("Missing password for decrypting private key");
+  
+          const privateKey = await decryptPrivateKey(username, rawPassword);
+          const message = `${username}:${timestamp}`;
+          const signature_b64 = await signMessageWithKey(privateKey, message);
+  
+          requestSessionKeyMutation.mutate(
+            { username, signature_b64, timestamp },
+            {
+              onSuccess: (data) => {
+                console.log("Session Key success", data.session_key_encrypted);
+                //localStorage.setItem("session_key", data.session_key_encrypted); // 你可以視情況存下來
+              },
+              onError: (err) => {
+                console.error("⚠️ Session Key fail:", err);
+              }
+            }
+          );
+        } catch (err) {
+          console.error("Failed to request session key:", err);
+        }
+      }
+  
       navigate({ to: "/" });
     },
     onError: (err: ApiError) => {
