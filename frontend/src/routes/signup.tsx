@@ -50,9 +50,10 @@ function SignUp() {
   })
 
   const onSubmit: SubmitHandler<UserRegisterForm> = async (data) => {
+    //console.log("encrypted name: ", data.email);
     try {
       const keyPair = await generateRSAKeyPair()
-      await savePrivateKey(keyPair.privateKey, data.full_name || "", data.password);
+      await savePrivateKey(keyPair.privateKey, data.email || "", data.password);
       const publicKeyPEM = await exportPublicKeyToPEM(keyPair.publicKey)
       const payload = { ...data, public_key: publicKeyPEM }
       signUpMutation.mutate(payload)
