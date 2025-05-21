@@ -8,10 +8,14 @@ import emails  # type: ignore
 import jwt
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
+from jose import JWTError
 
 from app.core import security
 from app.core.config import settings
 import pyotp
+import qrcode
+from io import BytesIO
+import base64
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -123,6 +127,7 @@ def verify_password_reset_token(token: str) -> str | None:
     except InvalidTokenError:
         return None
 
+# TOTP functions
 def generate_totp_secret() -> str:
     """generate a set of new TOTP secret key"""
     return pyotp.random_base32()
@@ -131,3 +136,34 @@ def verify_totp_token(secret: str, token: str) -> bool:
     """verify the user's TOTP code"""
     totp = pyotp.TOTP(secret)
     return totp.verify(token)
+
+def get_totp_qr_code(issuer: str, account_name: str, secret: str) -> str:
+    """Generate a QR code URL for TOTP setup."""
+    totp = pyotp.TOTP(secret)
+    uri = totp.provisioning_uri(name=account_name, issuer_name=issuer)
+    qr = qrcode.make(uri)
+    buffer = BytesIO()
+    qr.save(buffer, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+# temporary token for TOTP setup
+SECRET_KEY = "your-secret-key"
+ALGORITHM = "HS256"
+def create_temp_token(user_id: str, expires_minutes: int = 10, scope: str = "totp_setup") -> str:
+    expire = datetime.utcnow() + timedelta(minutes=expires_minutes)
+    payload = {
+        "sub": str(user_id),
+        "exp": expire,
+        "scope": scope,
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return token
+
+def verify_temp_token(token: str, expected_scope: str) -> str | None:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("scope") != expected_scope:
+            return None
+        return payload.get("sub")
+    except JWTError:
+        return None
