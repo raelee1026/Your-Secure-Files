@@ -54,7 +54,7 @@ function Login() {
         
       } else {
         // second stage: TOTP verification
-        console.log("totp verify!")
+        // console.log("totp verify!")
         if (!data.totp_code || !email) {
           throw new Error("TOTP code and email are required");
         }

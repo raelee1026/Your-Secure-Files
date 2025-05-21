@@ -24,7 +24,8 @@ dependencies = [
     "cryptography",
     "pyotp",
     "qrcode",
-    "pillow"
+    "pillow",
+    "python-jose"
 ]
 
 [tool.uv]
