@@ -70,3 +70,46 @@ export async function verifyWithPublicKey(publicKey: CryptoKey, signature: Array
     data
   )
 }
+
+// --- AES-GCM encryption/decryption ---
+
+// import base64 string as AES CryptoKey
+export async function importAESKeyFromBase64(base64Key: string): Promise<CryptoKey> {
+  const rawKey = Uint8Array.from(atob(base64Key), c => c.charCodeAt(0));
+  return crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+
+export async function encryptAESGCM(plaintext: string, aesKey: CryptoKey): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoded = new TextEncoder().encode(plaintext);
+
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, encoded);
+
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+
+  const result = btoa(String.fromCharCode(...combined));
+
+  // ✅ Log
+  console.log("🔐 Encrypting:", plaintext);
+  console.log("🧊 Encrypted (base64):", result);
+
+  return result;
+}
+
+// decrypt base64(nonce + ciphertext) with AES-GCM
+export async function decryptAESGCM(ciphertextBase64: string, aesKey: CryptoKey): Promise<string> {
+  const combined = Uint8Array.from(atob(ciphertextBase64), c => c.charCodeAt(0));
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, ciphertext);
+  const result = new TextDecoder().decode(decrypted);
+
+  // ✅ Log
+  console.log("🔓 Decrypting base64:", ciphertextBase64);
+  console.log("✅ Decrypted:", result);
+
+  return result;
+}
