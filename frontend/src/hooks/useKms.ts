@@ -38,6 +38,7 @@ export const useKms = () => {
       setSessionKey(data.session_key_encrypted);
       setExpiresIn(data.expires_in);
       setKmsError(null);
+      console.log("Session Key success", data.session_key_encrypted);
     },
     onError: (err: Error) => {
       setKmsError(err.message);
@@ -57,11 +58,16 @@ export async function signMessageWithKey(privateKey: CryptoKey, message: string)
   const encoder = new TextEncoder();
   const data = encoder.encode(message);
 
-  const signature = await window.crypto.subtle.sign(
-    { name: "RSASSA-PKCS1-v1_5" },
-    privateKey,
-    data
-  );
+  try {
+    const signature = await window.crypto.subtle.sign(
+      { name: "RSASSA-PKCS1-v1_5" },
+      privateKey,
+      data
+    );
 
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+    return btoa(String.fromCharCode(...new Uint8Array(signature)));
+  } catch (e) {
+    console.error("❌ Signing failed. Is the privateKey valid?", privateKey);
+    throw e;
+  }
 }

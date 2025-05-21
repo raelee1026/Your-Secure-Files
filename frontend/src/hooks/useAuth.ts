@@ -124,7 +124,7 @@ const useAuth = () => {
     totp_code: string;
     password?: string;
   }) => {
-    //setPassword(password || null);
+    //console.log("decrypted name: ", email);
     console.log(password);
     const response = await fetch("http://localhost:8000/api/v1/login/totp-verify", {
       method: 'POST',
@@ -146,12 +146,11 @@ const useAuth = () => {
       localStorage.removeItem("temp_token");
       localStorage.setItem("access_token", data.access_token);
       setRequiresTotp(false);
-      setEmail(null);
       
-      const username = email;
+      const username = variables.email;
       const timestamp = Math.floor(Date.now() / 1000);
       const rawPassword = variables.password;
-      console.log("rawPassword", rawPassword);
+      //console.log("rawPassword", rawPassword);
 
       if (username) {
         try {
@@ -161,12 +160,12 @@ const useAuth = () => {
           const message = `${username}:${timestamp}`;
           const signature_b64 = await signMessageWithKey(privateKey, message);
   
-          requestSessionKeyMutation.mutate(
+          requestSessionKeyMutation.mutateAsync(
             { username, signature_b64, timestamp },
             {
               onSuccess: (data) => {
                 console.log("Session Key success", data.session_key_encrypted);
-                //localStorage.setItem("session_key", data.session_key_encrypted); // 你可以視情況存下來
+                localStorage.setItem("session_key", data.session_key_encrypted);
               },
               onError: (err) => {
                 console.error("⚠️ Session Key fail:", err);

@@ -10,11 +10,10 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from sqlmodel import Session, select
 
 from app.models import User, SessionKey
-from app.db.session import engine
-from core.crypto import encrypt_with_rsa
+from app.core.db import engine
+from app.core.crypto import encrypt_with_rsa
 
-router = APIRouter()
-
+router = APIRouter(tags=["kms"])
 
 class KeyRequest(BaseModel):
     username: str  # 實際上會對應到 User.email
@@ -83,7 +82,8 @@ def request_session_key(data: KeyRequest):
         )
         session.add(new_key)
         session.commit()
-
+    
+        print(f"New session key generated for user {user.email}: {encrypted_key_b64}")
         return {
             "session_key_encrypted": encrypted_key_b64,
             "expires_in": 600
