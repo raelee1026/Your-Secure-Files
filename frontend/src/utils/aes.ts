@@ -11,11 +11,9 @@ export async function getSessionKey(): Promise<CryptoKey> {
 
   const privateKey = await decryptKmsPrivateKey(username, password); 
   if (!privateKey) throw new Error("Missing private key")
-  await new Promise((resolve) => setTimeout(resolve, 500))
 
   const encryptedB64 = localStorage.getItem("session_key")!;
   if (!encryptedB64) throw new Error("Missing encrypted session key")
-  await new Promise((resolve) => setTimeout(resolve, 500))
 
   const encryptedBytes = Uint8Array.from(atob(encryptedB64), c => c.charCodeAt(0));
 
