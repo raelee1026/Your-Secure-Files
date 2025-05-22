@@ -21,3 +21,4 @@ def encrypt_with_rsa(public_key, data: bytes) -> bytes:
             algorithm=hashes.SHA256(),
             label=None
         )
+    )
