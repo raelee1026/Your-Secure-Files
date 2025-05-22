@@ -9,6 +9,8 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from sqlmodel import Session, select
 
+import secrets
+
 from app.models import User, SessionKey
 from app.core.db import engine
 from app.core.crypto import encrypt_with_rsa
@@ -67,12 +69,18 @@ def request_session_key(data: KeyRequest):
             }
 
         # 產生新的 AES session key
-        session_key = AESGCM.generate_key(bit_length=256)
+        session_key = secrets.token_bytes(16)  # 128-bit raw key
         expires_at = datetime.utcnow() + timedelta(minutes=10)
 
-        # 使用公鑰加密 session key
         encrypted_key = encrypt_with_rsa(public_key, session_key)
         encrypted_key_b64 = base64.b64encode(encrypted_key).decode()
+        
+        # session_key = AESGCM.generate_key(bit_length=256)
+        # expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+        # # 使用公鑰加密 session key
+        # encrypted_key = encrypt_with_rsa(public_key, session_key)
+        # encrypted_key_b64 = base64.b64encode(encrypted_key).decode()
 
         # 儲存 SessionKey 到資料庫
         new_key = SessionKey(
