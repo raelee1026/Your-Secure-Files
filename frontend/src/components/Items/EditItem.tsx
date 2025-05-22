@@ -25,8 +25,8 @@ import {
   DialogTrigger,
 } from "../ui/dialog"
 import { Field } from "../ui/field"
-import { getSessionKey } from "@/utils/aes"
-import { encryptAESGCM } from "@/utils/aes"
+import { getSessionKey } from "@/utils/manual-aes"
+import { encryptAESGCM } from "@/utils/manual-aes"
 
 
 interface EditItemProps {

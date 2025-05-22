@@ -25,8 +25,8 @@ import {
 import { useEffect, useState } from "react"
 import type { ItemPublic } from "@/client"
 
-import { getSessionKey } from "@/utils/aes"
-import { decryptAESGCM } from "@/utils/aes"
+import { getSessionKey } from "@/utils/manual-aes"
+import { decryptAESGCM } from "@/utils/manual-aes"
 
 
 const itemsSearchSchema = z.object({
