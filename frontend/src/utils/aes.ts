@@ -43,8 +43,8 @@ export async function decryptAESGCM(ciphertextBase64: string, aesKey: CryptoKey)
   const result = new TextDecoder().decode(decrypted);
 
   // ✅ Log
-  console.log("🔓 Decrypting base64:", ciphertextBase64);
-  console.log("✅ Decrypted:", result);
+  // console.log("🔓 Decrypting base64:", ciphertextBase64);
+  // console.log("✅ Decrypted:", result);
 
   return result;
 }
@@ -62,8 +62,8 @@ export async function encryptAESGCM(plaintext: string, aesKey: CryptoKey): Promi
   const result = btoa(String.fromCharCode(...combined));
 
   // ✅ Log
-  console.log("🔐 Encrypting:", plaintext);
-  console.log("🧊 Encrypted (base64):", result);
+  // console.log("🔐 Encrypting:", plaintext);
+  // console.log("🧊 Encrypted (base64):", result);
 
   return result;
 }
