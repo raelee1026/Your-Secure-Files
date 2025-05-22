@@ -25,8 +25,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog"
 import { Field } from "../ui/field"
-import { importAESKeyFromRawBytes } from "@/utils/aes"
-import { decryptKmsPrivateKey } from "@/utils/crypto"
+import { getSessionKey } from "@/utils/aes"
 import { encryptAESGCM } from "@/utils/aes"
 
 
@@ -75,49 +74,9 @@ const EditItem = ({ item }: EditItemProps) => {
   
   const onSubmit: SubmitHandler<ItemUpdateForm> = async (data) => {
   try {
-     const username = localStorage.getItem("username")
-      if (!username) throw new Error("Missing username")
-
-      const password = localStorage.getItem("password")
-      if (!password) throw new Error("Missing password")
-
-      const privateKey = await decryptKmsPrivateKey(username, password); 
-      console.log("privateKey", privateKey)
-      if (!privateKey) throw new Error("Missing private key")
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      const encryptedB64 = localStorage.getItem("session_key")!;
-      console.log("encryptedB64", encryptedB64)
-      if (!encryptedB64) throw new Error("Missing encrypted session key")
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      const encryptedBytes = Uint8Array.from(atob(encryptedB64), c => c.charCodeAt(0));
-
-      const rawKey = await crypto.subtle.decrypt(
-        { name: "RSA-OAEP" },
-        privateKey,
-        encryptedBytes
-      );
-      console.log("rawKey", rawKey)
-      if (!rawKey) throw new Error("Missing raw key")
-      // stop for 5 seconds
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-
-      const aesKey = await crypto.subtle.importKey(
-        "raw",
-        rawKey,
-        { name: "AES-GCM" },
-        true,
-        ["encrypt", "decrypt"]
-      );
-      console.log("aesKey", aesKey)
-      if (!aesKey) throw new Error("Missing AES key")
-
+     const aesKey = await getSessionKey()
     
-    const session_key_encrypted = localStorage.getItem("session_key");
-    if (!session_key_encrypted) throw new Error("Missing AES session key");
-
+   
 
     const encryptedTitle = await encryptAESGCM(data.title, aesKey);
     const encryptedDescription = data.description
