@@ -109,14 +109,12 @@ function xorBlocks(a: Uint8Array, b: Uint8Array): Uint8Array {
  */
 function expandKey(keyBytes: Uint8Array): Uint8Array[] {
 
-    console.log("start expandKey", keyBytes);
   if (keyBytes.length !== 16) throw new Error("Invalid key size for expansion");
   const roundKeys = [new Uint8Array(keyBytes)];
   for (let i = 1; i < 15; i++) {
     const prevKey = roundKeys[i - 1];
     const newKey = new Uint8Array(16);
     const rotated = new Uint8Array([prevKey[13], prevKey[14], prevKey[15], prevKey[12]]);
-    console.log("rotated", rotated);
     const subbed = subBytes(rotated);
     newKey.set(xorBlocks(subbed, prevKey.slice(0, 4)), 0);
     for (let j = 4; j < 16; j++) {
@@ -124,7 +122,6 @@ function expandKey(keyBytes: Uint8Array): Uint8Array[] {
     }
     roundKeys.push(newKey);
   }
-  console.log("end expandKey", roundKeys);
   return roundKeys;
 }
 
