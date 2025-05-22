@@ -25,6 +25,9 @@ import {
   DialogTrigger,
 } from "../ui/dialog"
 import { Field } from "../ui/field"
+import { getSessionKey } from "@/utils/aes"
+import { encryptAESGCM } from "@/utils/aes"
+
 
 interface EditItemProps {
   item: ItemPublic
@@ -68,10 +71,27 @@ const EditItem = ({ item }: EditItemProps) => {
       queryClient.invalidateQueries({ queryKey: ["items"] })
     },
   })
-
+  
   const onSubmit: SubmitHandler<ItemUpdateForm> = async (data) => {
-    mutation.mutate(data)
+  try {
+     const aesKey = await getSessionKey()
+    
+   
+
+    const encryptedTitle = await encryptAESGCM(data.title, aesKey);
+    const encryptedDescription = data.description
+    ? await encryptAESGCM(data.description, aesKey)
+    : "";
+
+    mutation.mutate({
+      title: encryptedTitle,
+      description: encryptedDescription,
+    });
+  } catch (err) {
+    console.error("❌ 加密失敗:", err);
   }
+};
+    
 
   return (
     <DialogRoot

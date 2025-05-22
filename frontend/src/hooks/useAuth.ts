@@ -126,6 +126,11 @@ const useAuth = () => {
   }) => {
     //console.log("decrypted name: ", email);
     console.log(password);
+    localStorage.setItem("username", email);
+    // localStorage.setItem("password", password);
+    if (password !== undefined) {
+      localStorage.setItem("password", password);
+    }
     const response = await fetch("http://localhost:8000/api/v1/login/totp-verify", {
       method: 'POST',
       headers: { 
@@ -166,6 +171,7 @@ const useAuth = () => {
               onSuccess: (data) => {
                 console.log("Session Key success", data.session_key_encrypted);
                 localStorage.setItem("session_key", data.session_key_encrypted);
+                
               },
               onError: (err) => {
                 console.error("⚠️ Session Key fail:", err);

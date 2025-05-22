@@ -10,7 +10,15 @@ def encrypt_with_rsa(public_key, data: bytes) -> bytes:
     :param data: 要加密的 bytes，例如 AES-GCM 的 session key
     :return: 加密後的 bytes
     """
+    # return public_key.encrypt(
+    #     data,
+    #     padding.PKCS1v15() 
+    # )
     return public_key.encrypt(
         data,
-        padding.PKCS1v15() 
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
     )

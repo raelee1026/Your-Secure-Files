@@ -39,6 +39,8 @@ export const useKms = () => {
       setExpiresIn(data.expires_in);
       setKmsError(null);
       console.log("Session Key success", data.session_key_encrypted);
+      localStorage.setItem("session_key", data.session_key_encrypted);
+      console.log("Session Key stored in localStorage", localStorage.getItem("session_key"));
     },
     onError: (err: Error) => {
       setKmsError(err.message);
