@@ -247,7 +247,7 @@ def totp_setup(
     session.commit()
 
     qr_code_url = get_totp_qr_code(
-        issuer="YourAppName",
+        issuer="YoSpace",
         account_name=user.email,
         secret=totp_secret
     )
